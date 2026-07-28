@@ -10,4 +10,3 @@ anniversary.html
 birthday.html
 teamNews.html
 auditDates.html
-helloslide.html
