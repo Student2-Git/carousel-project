@@ -61,6 +61,24 @@
 
     const carousel = document.getElementById('carousel');
 
+    // Tracks whether each slide file currently has content to show.
+    // A slide is assumed to have content (true) unless it explicitly
+    // tells us otherwise via postMessage - this keeps existing slides
+    // working exactly as before, with no changes needed on their part.
+    // Only slides that opt in (like safetyNotice.html) can be skipped.
+    const slideHasContent = {};
+
+    window.addEventListener('message', (event) => {
+        let data = event.data;
+        if (typeof data === 'string') {
+            try { data = JSON.parse(data); } catch (e) { return; }
+        }
+        if (!data || data.type !== 'carousel-slide-status' || !data.filename) return;
+
+        slideHasContent[data.filename] = !!data.hasContent;
+        handlePossibleSkip(data.filename);
+    });
+
     async function loadSlideFiles() {
         try {
             const response = await fetch(MANIFEST_FILE, { cache: 'no-store' });
@@ -76,7 +94,13 @@
         }
     }
 
+    let slideFiles = [];
+    let slides = [];
+    let current = 0;
+
     function buildSlides(files) {
+        slideFiles = files;
+
         files.forEach((file, i) => {
             const slide = document.createElement('div');
             slide.className = 'slide' + (i === 0 ? ' active' : '');
@@ -89,20 +113,46 @@
             carousel.appendChild(slide);
         });
 
-        const slides = document.querySelectorAll('.slide');
-        let current = 0;
-        const total = slides.length;
+        slides = document.querySelectorAll('.slide');
 
-        function showSlide(index) {
-            slides[current].classList.remove('active');
-            current = (index + total) % total;
-            slides[current].classList.add('active');
-        }
-
-        function nextSlide() { showSlide(current + 1); }
-
-        if (total > 1) {
+        if (slides.length > 1) {
             setInterval(nextSlide, AUTOPLAY_DELAY);
+        }
+    }
+
+    function showSlide(index) {
+        const total = slides.length;
+        slides[current].classList.remove('active');
+        current = (index + total) % total;
+        slides[current].classList.add('active');
+    }
+
+    function nextSlide() {
+        const total = slideFiles.length;
+        if (total === 0) return;
+
+        // Look for the next slide that has content, trying at most
+        // `total` times so we never loop forever if every slide is
+        // currently empty.
+        for (let attempts = 0; attempts < total; attempts++) {
+            const candidate = (current + 1 + attempts) % total;
+            if (slideHasContent[slideFiles[candidate]] !== false) {
+                showSlide(candidate);
+                return;
+            }
+        }
+        // Every slide is marked empty - just move forward anyway so
+        // the display doesn't freeze on one hidden slide.
+        showSlide(current + 1);
+    }
+
+    function handlePossibleSkip(filename) {
+        if (!slides.length) return;
+        const currentFile = slideFiles[current];
+        // If the slide currently on screen just told us it's empty,
+        // don't wait for the full autoplay delay - advance right away.
+        if (currentFile === filename && slideHasContent[filename] === false) {
+            nextSlide();
         }
     }
 
