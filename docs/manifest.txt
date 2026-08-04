@@ -6,6 +6,7 @@
 # To REMOVE a slide: delete its line (or put a # in front of it).
 # To REORDER slides: move the lines up or down.
 
+safetyNotice.html
 anniversary.html
 birthday.html
 teamNews.html
