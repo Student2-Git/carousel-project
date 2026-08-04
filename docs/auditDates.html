@@ -35,7 +35,7 @@
         from pyscript import document
 
         try:
-            df = pd.read_excel("slide_data.xlsx", engine="openpyxl")
+            df = pd.read_excel("testbirthdays.xlsx", engine="openpyxl")
 
             today = date.today()
             df['Audit Date'] = pd.to_datetime(df['Audit Date'])
